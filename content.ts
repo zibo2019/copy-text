@@ -11,6 +11,9 @@ interface TextExtractionOptions {
 class AITextExtractor {
   private floatingButton: HTMLElement | null = null;
   private isButtonVisible = false;
+  private isInspectMode = false;
+  private inspectOverlay: HTMLElement | null = null;
+  private highlightedElement: HTMLElement | null = null;
   private settings: TextExtractionOptions = {
     maxLength: 50000,
     cleanFormatting: true,
@@ -60,18 +63,12 @@ class AITextExtractor {
         case 'copy-main':
           this.handleAction('copy-main');
           break;
-        case 'test-extraction':
-          this.testExtraction();
-          break;
       }
       sendResponse({ success: true });
     });
   }
 
-  private testExtraction() {
-    // 显示测试通知
-    this.showNotification('测试提取功能正常工作！', 'success');
-  }
+
 
   private setupExtractor() {
     this.createFloatingButton();
@@ -93,7 +90,7 @@ class AITextExtractor {
           <span>复制全页</span>
         </button>
         <button class="ate-menu-item" data-action="copy-selection">
-          <span>复制选中</span>
+          <span>选择元素</span>
         </button>
         <button class="ate-menu-item" data-action="copy-main">
           <span>智能提取</span>
@@ -252,10 +249,9 @@ class AITextExtractor {
           successMessage = '已复制全页面文本 (AI优化)';
           break;
         case 'copy-selection':
-          const selectedText = this.extractSelectedText();
-          text = selectedText ? this.processTextForAI(selectedText) : '';
-          successMessage = text ? '已复制选中文本 (AI优化)' : '请先选中文本';
-          break;
+          // 进入元素选择模式
+          this.enterInspectMode();
+          return; // 不执行复制，等待用户选择元素
         case 'copy-main':
           text = this.processTextForAI(this.extractMainContent());
           successMessage = '已复制主要内容 (AI优化)';
@@ -521,7 +517,7 @@ class AITextExtractor {
     const notification = document.createElement('div');
     notification.className = 'ate-notification';
     notification.textContent = message;
-    
+
     if (type === 'warning') {
       notification.style.background = '#F59E0B';
     } else if (type === 'error') {
@@ -533,6 +529,283 @@ class AITextExtractor {
     setTimeout(() => {
       notification.remove();
     }, 3000);
+  }
+
+  // 进入元素检查模式
+  private enterInspectMode() {
+    if (this.isInspectMode) return;
+
+    this.isInspectMode = true;
+    this.hideMenu();
+    this.createInspectOverlay();
+    this.setupInspectEventListeners();
+    this.showNotification('检查模式已启动，点击任意元素提取文本，按ESC退出', 'warning');
+  }
+
+  // 退出元素检查模式
+  private exitInspectMode() {
+    if (!this.isInspectMode) return;
+
+    this.isInspectMode = false;
+    this.removeInspectOverlay();
+    this.removeHighlight();
+    this.removeInspectEventListeners();
+  }
+
+  // 创建检查模式覆盖层
+  private createInspectOverlay() {
+    const overlay = document.createElement('div');
+    overlay.id = 'ai-text-extractor-inspect-overlay';
+    overlay.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(79, 70, 229, 0.1);
+      z-index: 9999;
+      cursor: crosshair;
+      pointer-events: none;
+    `;
+
+    // 添加提示文字
+    const hint = document.createElement('div');
+    hint.style.cssText = `
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #1F2937;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      z-index: 10001;
+    `;
+    hint.textContent = '点击任意元素提取文本 • 按ESC退出检查模式';
+
+    document.body.appendChild(overlay);
+    document.body.appendChild(hint);
+
+    this.inspectOverlay = overlay;
+
+    // 3秒后自动隐藏提示
+    setTimeout(() => {
+      if (hint.parentNode) {
+        hint.remove();
+      }
+    }, 3000);
+  }
+
+  // 移除检查模式覆盖层
+  private removeInspectOverlay() {
+    if (this.inspectOverlay) {
+      this.inspectOverlay.remove();
+      this.inspectOverlay = null;
+    }
+
+    // 移除所有提示元素
+    document.querySelectorAll('#ai-text-extractor-inspect-overlay, [id*="ai-text-extractor-hint"]').forEach(el => {
+      el.remove();
+    });
+  }
+
+  // 设置检查模式事件监听器
+  private setupInspectEventListeners() {
+    document.addEventListener('mouseover', this.handleInspectMouseOver);
+    document.addEventListener('mouseout', this.handleInspectMouseOut);
+    document.addEventListener('click', this.handleInspectClick);
+    document.addEventListener('keydown', this.handleInspectKeyDown);
+  }
+
+  // 移除检查模式事件监听器
+  private removeInspectEventListeners() {
+    document.removeEventListener('mouseover', this.handleInspectMouseOver);
+    document.removeEventListener('mouseout', this.handleInspectMouseOut);
+    document.removeEventListener('click', this.handleInspectClick);
+    document.removeEventListener('keydown', this.handleInspectKeyDown);
+  }
+
+  // 处理鼠标悬停
+  private handleInspectMouseOver = (e: MouseEvent) => {
+    if (!this.isInspectMode) return;
+
+    const target = e.target as HTMLElement;
+    if (target && target !== this.floatingButton && !this.floatingButton?.contains(target)) {
+      this.highlightElement(target);
+    }
+  };
+
+  // 处理鼠标离开
+  private handleInspectMouseOut = (e: MouseEvent) => {
+    if (!this.isInspectMode) return;
+    // 不立即移除高亮，等待新的元素高亮
+  };
+
+  // 处理点击事件
+  private handleInspectClick = async (e: MouseEvent) => {
+    if (!this.isInspectMode) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const target = e.target as HTMLElement;
+    if (target && target !== this.floatingButton && !this.floatingButton?.contains(target)) {
+      await this.extractElementText(target);
+      this.exitInspectMode();
+    }
+  };
+
+  // 处理键盘事件
+  private handleInspectKeyDown = (e: KeyboardEvent) => {
+    if (!this.isInspectMode) return;
+
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      this.exitInspectMode();
+      this.showNotification('已退出检查模式');
+    }
+  };
+
+  // 高亮元素
+  private highlightElement(element: HTMLElement) {
+    this.removeHighlight();
+
+    const rect = element.getBoundingClientRect();
+    const highlight = document.createElement('div');
+    highlight.id = 'ai-text-extractor-highlight';
+    highlight.style.cssText = `
+      position: fixed;
+      top: ${rect.top}px;
+      left: ${rect.left}px;
+      width: ${rect.width}px;
+      height: ${rect.height}px;
+      border: 2px solid #4F46E5;
+      background: rgba(79, 70, 229, 0.1);
+      pointer-events: none;
+      z-index: 10000;
+      border-radius: 4px;
+    `;
+
+    // 添加标签显示元素信息
+    const label = document.createElement('div');
+    label.style.cssText = `
+      position: absolute;
+      top: -30px;
+      left: 0;
+      background: #4F46E5;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      white-space: nowrap;
+      max-width: 200px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    `;
+
+    const tagName = element.tagName.toLowerCase();
+    const className = element.className ? `.${element.className.split(' ')[0]}` : '';
+    const id = element.id ? `#${element.id}` : '';
+    label.textContent = `${tagName}${id}${className}`;
+
+    highlight.appendChild(label);
+    document.body.appendChild(highlight);
+    this.highlightedElement = highlight;
+  }
+
+  // 移除高亮
+  private removeHighlight() {
+    if (this.highlightedElement) {
+      this.highlightedElement.remove();
+      this.highlightedElement = null;
+    }
+  }
+
+  // 提取元素文本
+  private async extractElementText(element: HTMLElement) {
+    try {
+      // 克隆元素以避免修改原始DOM
+      const clone = element.cloneNode(true) as HTMLElement;
+
+      // 移除脚本、样式等不需要的元素
+      const unwantedSelectors = [
+        'script', 'style', 'noscript', 'iframe', 'object', 'embed',
+        '.advertisement', '.ads', '[class*="ad-"]', '[id*="ad-"]'
+      ];
+
+      unwantedSelectors.forEach(selector => {
+        clone.querySelectorAll(selector).forEach(el => el.remove());
+      });
+
+      // 提取纯文本
+      let text = clone.innerText || clone.textContent || '';
+
+      if (!text.trim()) {
+        this.showNotification('该元素没有可提取的文本内容', 'warning');
+        return;
+      }
+
+      // 应用AI优化处理
+      text = this.processTextForAI(text);
+
+      // 复制到剪贴板
+      await this.copyToClipboard(text);
+
+      // 显示成功通知
+      const elementInfo = this.getElementInfo(element);
+      this.showNotification(`已复制 ${elementInfo} 的文本内容 (AI优化)`);
+
+      // 向后台脚本报告复制成功
+      try {
+        await chrome.runtime.sendMessage({
+          action: 'copy-success',
+          textLength: text.length
+        });
+      } catch (error) {
+        console.error('报告复制状态失败:', error);
+      }
+
+    } catch (error) {
+      console.error('提取元素文本失败:', error);
+      this.showNotification('提取文本失败，请重试', 'error');
+    }
+  }
+
+  // 获取元素信息
+  private getElementInfo(element: HTMLElement): string {
+    const tagName = element.tagName.toLowerCase();
+
+    if (element.id) {
+      return `${tagName}#${element.id}`;
+    }
+
+    if (element.className) {
+      const firstClass = element.className.split(' ')[0];
+      return `${tagName}.${firstClass}`;
+    }
+
+    // 尝试通过内容识别元素类型
+    if (tagName === 'article' || element.getAttribute('role') === 'article') {
+      return '文章内容';
+    }
+
+    if (tagName === 'main' || element.getAttribute('role') === 'main') {
+      return '主要内容';
+    }
+
+    if (tagName === 'section') {
+      return '章节内容';
+    }
+
+    if (tagName === 'div' && element.textContent && element.textContent.length > 100) {
+      return '内容区块';
+    }
+
+    return tagName;
   }
 }
 

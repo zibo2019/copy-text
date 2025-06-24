@@ -50,7 +50,7 @@
           "default": "Ctrl+Shift+S",
           "mac": "Command+Shift+S"
         },
-        "description": "复制选中文本"
+        "description": "选择元素提取文本"
       },
       "copy-main": {
         "suggested_key": {

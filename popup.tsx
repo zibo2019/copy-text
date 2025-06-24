@@ -62,14 +62,16 @@ function IndexPopup() {
     saveSettings(newSettings);
   };
 
-  const testExtraction = async () => {
+  const copyFullPage = async () => {
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (tab.id) {
-        await chrome.tabs.sendMessage(tab.id, { action: 'test-extraction' });
+        await chrome.tabs.sendMessage(tab.id, { action: 'copy-all' });
+        // 关闭popup窗口
+        window.close();
       }
     } catch (error) {
-      console.error('测试提取失败:', error);
+      console.error('复制全页失败:', error);
     }
   };
 
@@ -120,7 +122,7 @@ function IndexPopup() {
         </h3>
         <div style={{ display: 'flex', gap: 8 }}>
           <button
-            onClick={testExtraction}
+            onClick={copyFullPage}
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -133,7 +135,7 @@ function IndexPopup() {
               fontWeight: 500
             }}
           >
-            测试提取
+            复制全页
           </button>
           <button
             style={{

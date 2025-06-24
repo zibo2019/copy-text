@@ -71,11 +71,6 @@ class BackgroundService {
           sendResponse({ settings });
           break;
           
-        case 'test-extraction':
-          await this.testExtraction(sender.tab?.id);
-          sendResponse({ success: true });
-          break;
-          
         default:
           sendResponse({ error: '未知操作' });
       }
@@ -122,15 +117,7 @@ class BackgroundService {
     }
   }
 
-  private async testExtraction(tabId?: number) {
-    if (!tabId) return;
-    
-    try {
-      await chrome.tabs.sendMessage(tabId, { action: 'test-extraction' });
-    } catch (error) {
-      console.error('测试提取失败:', error);
-    }
-  }
+
 
   private setupContextMenus() {
     // 创建右键菜单
@@ -142,8 +129,8 @@ class BackgroundService {
 
     chrome.contextMenus.create({
       id: 'ai-text-extractor-copy-selection',
-      title: '复制选中文本 (AI优化)',
-      contexts: ['selection']
+      title: '选择元素提取文本 (AI优化)',
+      contexts: ['page']
     });
 
     chrome.contextMenus.create({
