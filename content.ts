@@ -9,6 +9,13 @@ interface TextExtractionOptions {
   completelyHideButton?: boolean;
 }
 
+interface LastSelection {
+  domain: string;
+  selector: string;
+  timestamp: number;
+  elementInfo: string;
+}
+
 class SmartTextExtractor {
   private floatingButton: HTMLElement | null = null;
   private isButtonVisible = true;
@@ -17,6 +24,7 @@ class SmartTextExtractor {
   private highlightedElement: HTMLElement | null = null;
   private autoHideTimer: number | null = null;
   private isMouseOverButton = false;
+  private lastSelection: LastSelection | null = null;
   private settings: TextExtractionOptions = {
     cleanFormatting: true,
     includeLinks: false,
@@ -32,6 +40,9 @@ class SmartTextExtractor {
   private async init() {
     // 加载设置
     await this.loadSettings();
+
+    // 加载上次选择的数据
+    await this.loadLastSelection();
 
     // 等待页面完全加载
     if (document.readyState === 'loading') {
@@ -56,6 +67,185 @@ class SmartTextExtractor {
       }
     } catch (error) {
       console.error('加载设置失败:', error);
+    }
+  }
+
+  private async loadLastSelection() {
+    try {
+      const result = await chrome.storage.local.get(['smartTextExtractorLastSelection']);
+      if (result.smartTextExtractorLastSelection) {
+        this.lastSelection = result.smartTextExtractorLastSelection;
+      }
+    } catch (error) {
+      console.error('加载上次选择失败:', error);
+    }
+  }
+
+  private async saveLastSelection(element: HTMLElement) {
+    try {
+      const selector = this.generateSelector(element);
+      const elementInfo = this.getElementInfo(element);
+
+      this.lastSelection = {
+        domain: window.location.hostname,
+        selector: selector,
+        timestamp: Date.now(),
+        elementInfo: elementInfo
+      };
+
+      await chrome.storage.local.set({
+        smartTextExtractorLastSelection: this.lastSelection
+      });
+    } catch (error) {
+      console.error('保存上次选择失败:', error);
+    }
+  }
+
+  // 生成CSS选择器
+  private generateSelector(element: HTMLElement): string {
+    // 如果有唯一ID，优先使用ID选择器
+    if (element.id) {
+      return `#${element.id}`;
+    }
+
+    // 构建路径选择器
+    const path: string[] = [];
+    let current: Element | null = element;
+
+    while (current && current !== document.body) {
+      let selector = current.tagName.toLowerCase();
+
+      // 添加类名（只取第一个有意义的类名）
+      if (current.className) {
+        const classes = current.className.split(' ').filter(cls =>
+          cls && !cls.startsWith('_') && cls.length > 1
+        );
+        if (classes.length > 0) {
+          selector += `.${classes[0]}`;
+        }
+      }
+
+      // 如果有兄弟元素，添加nth-child
+      if (current.parentElement) {
+        const siblings = Array.from(current.parentElement.children).filter(
+          child => child.tagName === current!.tagName
+        );
+        if (siblings.length > 1) {
+          const index = siblings.indexOf(current) + 1;
+          selector += `:nth-child(${index})`;
+        }
+      }
+
+      path.unshift(selector);
+      current = current.parentElement;
+    }
+
+    return path.join(' > ');
+  }
+
+  // 生成菜单项
+  private generateMenuItems(): string {
+    let menuItems = `
+      <button class="ate-menu-item" data-action="copy-all">
+        <span>复制全页</span>
+      </button>
+      <button class="ate-menu-item" data-action="copy-selection">
+        <span>选择元素</span>
+      </button>
+    `;
+
+    // 检查是否有上次选择且域名匹配
+    if (this.shouldShowLastSelection()) {
+      menuItems += `
+        <button class="ate-menu-item" data-action="copy-last-selection">
+          <span>上次选择 (${this.lastSelection!.elementInfo})</span>
+        </button>
+      `;
+    }
+
+    return menuItems;
+  }
+
+  // 检查是否应该显示上次选择菜单
+  private shouldShowLastSelection(): boolean {
+    if (!this.lastSelection) return false;
+
+    const currentDomain = window.location.hostname;
+    const isMatchingDomain = this.lastSelection.domain === currentDomain;
+
+    // 检查选择是否过期（7天）
+    const isNotExpired = (Date.now() - this.lastSelection.timestamp) < (7 * 24 * 60 * 60 * 1000);
+
+    return isMatchingDomain && isNotExpired;
+  }
+
+  // 从上次选择的元素提取文本
+  private async extractFromLastSelection() {
+    if (!this.lastSelection) {
+      this.showNotification('没有找到上次选择的记录', 'warning');
+      return;
+    }
+
+    try {
+      // 尝试使用选择器找到元素
+      const element = document.querySelector(this.lastSelection.selector) as HTMLElement;
+
+      if (!element) {
+        this.showNotification(`未找到元素：${this.lastSelection.elementInfo}`, 'error');
+        return;
+      }
+
+      // 提取文本
+      const clone = element.cloneNode(true) as HTMLElement;
+
+      // 移除不需要的元素
+      const unwantedSelectors = [
+        'script', 'style', 'noscript', 'iframe', 'object', 'embed', 'svg',
+        '.advertisement', '.ads', '[class*="ad-"]', '[id*="ad-"]',
+        '[style*="display: none"]', '[style*="display:none"]',
+        '.hidden', '[hidden]'
+      ];
+
+      unwantedSelectors.forEach(selector => {
+        try {
+          clone.querySelectorAll(selector).forEach(el => el.remove());
+        } catch (e) {
+          // 忽略选择器错误
+        }
+      });
+
+      let text = this.extractAllTextFromElement(clone);
+
+      if (!text.trim()) {
+        this.showNotification('该元素没有可提取的文本内容', 'warning');
+        return;
+      }
+
+      // 应用文本处理
+      text = this.processText(text);
+
+      // 复制到剪贴板
+      await this.copyToClipboard(text);
+
+      // 显示成功通知
+      this.showNotification(`已复制 ${this.lastSelection.elementInfo} 的文本内容 (${text.length}字符)`);
+
+      // 重新启动自动隐藏计时器
+      this.startAutoHideTimer();
+
+      // 向后台脚本报告复制成功
+      try {
+        await chrome.runtime.sendMessage({
+          action: 'copy-success',
+          textLength: text.length
+        });
+      } catch (error) {
+        console.error('报告复制状态失败:', error);
+      }
+
+    } catch (error) {
+      console.error('从上次选择提取文本失败:', error);
+      this.showNotification('提取文本失败，请重试', 'error');
     }
   }
 
@@ -88,6 +278,10 @@ class SmartTextExtractor {
   private createFloatingButton() {
     const button = document.createElement('div');
     button.id = 'smart-text-extractor-button';
+
+    // 动态生成菜单内容
+    const menuItems = this.generateMenuItems();
+
     button.innerHTML = `
       <div class="ate-main-button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -95,12 +289,7 @@ class SmartTextExtractor {
         </svg>
       </div>
       <div class="ate-menu" style="display: none;">
-        <button class="ate-menu-item" data-action="copy-all">
-          <span>复制全页</span>
-        </button>
-        <button class="ate-menu-item" data-action="copy-selection">
-          <span>选择元素</span>
-        </button>
+        ${menuItems}
       </div>
     `;
 
@@ -246,7 +435,13 @@ class SmartTextExtractor {
     const menu = this.floatingButton?.querySelector('.ate-menu') as HTMLElement;
     if (menu) {
       const isVisible = menu.style.display !== 'none';
-      menu.style.display = isVisible ? 'none' : 'block';
+      if (isVisible) {
+        menu.style.display = 'none';
+      } else {
+        // 重新生成菜单内容以确保"上次选择"选项正确显示
+        menu.innerHTML = this.generateMenuItems();
+        menu.style.display = 'block';
+      }
     }
   }
 
@@ -272,6 +467,10 @@ class SmartTextExtractor {
           // 进入元素选择模式
           this.enterInspectMode();
           return; // 不执行复制，等待用户选择元素
+        case 'copy-last-selection':
+          // 使用上次选择的选择器提取文本
+          await this.extractFromLastSelection();
+          return; // 在extractFromLastSelection中处理复制和通知
         default:
           return;
       }
@@ -663,6 +862,9 @@ class SmartTextExtractor {
 
       // 复制到剪贴板
       await this.copyToClipboard(text);
+
+      // 保存上次选择
+      await this.saveLastSelection(element);
 
       // 显示成功通知
       const elementInfo = this.getElementInfo(element);
