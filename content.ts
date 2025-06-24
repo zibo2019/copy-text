@@ -101,42 +101,134 @@ class SmartTextExtractor {
     }
   }
 
+
+
   // 生成CSS选择器
   private generateSelector(element: HTMLElement): string {
-    // 如果有唯一ID，优先使用ID选择器
+    // 如果有唯一ID，先检查是否真的唯一
     if (element.id) {
-      return `#${element.id}`;
+      const elementsWithSameId = document.querySelectorAll(`#${element.id}`);
+      if (elementsWithSameId.length === 1) {
+        return `#${element.id}`;
+      }
     }
 
-    // 构建路径选择器
+    // 构建完整的路径选择器
     const path: string[] = [];
     let current: Element | null = element;
 
-    while (current && current !== document.body) {
+    while (current && current !== document.documentElement) {
       let selector = current.tagName.toLowerCase();
+      let isUnique = false;
 
-      // 添加类名（只取第一个有意义的类名）
-      if (current.className) {
-        const classes = current.className.split(' ').filter(cls =>
-          cls && !cls.startsWith('_') && cls.length > 1
-        );
-        if (classes.length > 0) {
-          selector += `.${classes[0]}`;
+      // 1. 尝试使用ID（如果存在且在当前上下文中唯一）
+      if (current.id) {
+        const testSelector = `${selector}#${current.id}`;
+        if (current.parentElement) {
+          const siblings = current.parentElement.querySelectorAll(testSelector);
+          if (siblings.length === 1) {
+            selector = testSelector;
+            isUnique = true;
+          }
         }
       }
 
-      // 如果有兄弟元素，添加nth-child
-      if (current.parentElement) {
-        const siblings = Array.from(current.parentElement.children).filter(
-          child => child.tagName === current!.tagName
+      // 2. 如果ID不唯一，尝试使用类名组合
+      if (!isUnique && current.className) {
+        const classes = current.className.split(' ').filter(cls =>
+          cls && !cls.startsWith('_') && cls.length > 1 &&
+          !cls.includes('active') && !cls.includes('hover') &&
+          !cls.includes('focus') && !cls.includes('selected')
         );
+
+        if (classes.length > 0) {
+          // 尝试使用所有有意义的类名
+          const classSelector = classes.slice(0, 3).join('.');
+          const testSelector = `${selector}.${classSelector}`;
+
+          if (current.parentElement) {
+            const siblings = current.parentElement.querySelectorAll(testSelector);
+            if (siblings.length === 1) {
+              selector = testSelector;
+              isUnique = true;
+            } else if (classes.length > 0) {
+              // 如果多个类名不唯一，至少使用第一个类名
+              selector += `.${classes[0]}`;
+            }
+          }
+        }
+      }
+
+      // 3. 如果仍不唯一，使用nth-child或nth-of-type
+      if (!isUnique && current.parentElement) {
+        const siblings = Array.from(current.parentElement.children);
+        const sameTagSiblings = siblings.filter(child => child.tagName === current!.tagName);
+
         if (siblings.length > 1) {
           const index = siblings.indexOf(current) + 1;
-          selector += `:nth-child(${index})`;
+
+          // 如果同类型标签只有一个，使用标签名就够了
+          if (sameTagSiblings.length === 1) {
+            // selector 保持不变，已经足够唯一
+          } else {
+            // 使用nth-child来精确定位
+            selector += `:nth-child(${index})`;
+          }
+        }
+      }
+
+      // 4. 添加特殊属性来增强唯一性
+      if (!isUnique && current instanceof HTMLElement) {
+        const uniqueAttrs = ['data-id', 'data-testid', 'data-cy', 'role', 'aria-label'];
+        for (const attr of uniqueAttrs) {
+          const value = current.getAttribute(attr);
+          if (value) {
+            const testSelector = `${selector}[${attr}="${value}"]`;
+            if (current.parentElement) {
+              const siblings = current.parentElement.querySelectorAll(testSelector);
+              if (siblings.length === 1) {
+                selector = testSelector;
+                break;
+              }
+            }
+          }
         }
       }
 
       path.unshift(selector);
+      current = current.parentElement;
+    }
+
+    const finalSelector = path.join(' > ');
+
+    // 验证生成的选择器是否唯一且正确
+    try {
+      const foundElements = document.querySelectorAll(finalSelector);
+      if (foundElements.length === 1 && foundElements[0] === element) {
+        return finalSelector;
+      } else {
+        // 如果选择器不唯一，添加更多上下文
+        return this.generateFallbackSelector(element);
+      }
+    } catch (error) {
+      // 如果选择器语法错误，使用备用方案
+      return this.generateFallbackSelector(element);
+    }
+  }
+
+  // 备用选择器生成方案
+  private generateFallbackSelector(element: HTMLElement): string {
+    const path: string[] = [];
+    let current: Element | null = element;
+
+    while (current && current !== document.documentElement) {
+      if (current.parentElement) {
+        const siblings = Array.from(current.parentElement.children);
+        const index = siblings.indexOf(current) + 1;
+        path.unshift(`${current.tagName.toLowerCase()}:nth-child(${index})`);
+      } else {
+        path.unshift(current.tagName.toLowerCase());
+      }
       current = current.parentElement;
     }
 
@@ -156,9 +248,12 @@ class SmartTextExtractor {
 
     // 检查是否有上次选择且域名匹配
     if (this.shouldShowLastSelection()) {
+      const timeAgo = this.getTimeAgo(this.lastSelection!.timestamp);
+
       menuItems += `
         <button class="ate-menu-item" data-action="copy-last-selection">
           <span>上次选择 (${this.lastSelection!.elementInfo})</span>
+          <small style="display: block; color: #6B7280; font-size: 11px; margin-top: 2px;">${timeAgo}</small>
         </button>
       `;
     }
@@ -179,6 +274,21 @@ class SmartTextExtractor {
     return isMatchingDomain && isNotExpired;
   }
 
+  // 获取时间差描述
+  private getTimeAgo(timestamp: number): string {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const minutes = Math.floor(diff / (1000 * 60));
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+
+    if (minutes < 1) return '刚刚';
+    if (minutes < 60) return `${minutes}分钟前`;
+    if (hours < 24) return `${hours}小时前`;
+    if (days < 7) return `${days}天前`;
+    return '一周前';
+  }
+
   // 从上次选择的元素提取文本
   private async extractFromLastSelection() {
     if (!this.lastSelection) {
@@ -188,12 +298,26 @@ class SmartTextExtractor {
 
     try {
       // 尝试使用选择器找到元素
-      const element = document.querySelector(this.lastSelection.selector) as HTMLElement;
+      const elements = document.querySelectorAll(this.lastSelection.selector);
 
-      if (!element) {
-        this.showNotification(`未找到元素：${this.lastSelection.elementInfo}`, 'error');
+      if (elements.length === 0) {
+        this.showNotification(`未找到元素：${this.lastSelection.elementInfo}，页面结构可能已改变`, 'error');
         return;
       }
+
+      if (elements.length > 1) {
+        this.showNotification(`找到多个匹配元素(${elements.length}个)，将使用第一个`, 'warning');
+      }
+
+      const element = elements[0] as HTMLElement;
+
+      // 验证元素是否可见和有效
+      if (!this.isElementVisible(element)) {
+        this.showNotification(`元素 ${this.lastSelection.elementInfo} 当前不可见`, 'warning');
+        // 仍然尝试提取文本，因为可能是隐藏但有内容的元素
+      }
+
+
 
       // 提取文本
       const clone = element.cloneNode(true) as HTMLElement;
@@ -247,6 +371,20 @@ class SmartTextExtractor {
       console.error('从上次选择提取文本失败:', error);
       this.showNotification('提取文本失败，请重试', 'error');
     }
+  }
+
+  // 检查元素是否可见
+  private isElementVisible(element: HTMLElement): boolean {
+    const rect = element.getBoundingClientRect();
+    const style = window.getComputedStyle(element);
+
+    return (
+      rect.width > 0 &&
+      rect.height > 0 &&
+      style.display !== 'none' &&
+      style.visibility !== 'hidden' &&
+      style.opacity !== '0'
+    );
   }
 
   private setupMessageListener() {
