@@ -1,8 +1,8 @@
 {
-  "name": "copy-text",
-  "displayName": "Copy text",
-  "version": "0.0.1",
-  "description": "A basic Plasmo extension.",
+  "name": "ai-text-extractor",
+  "displayName": "AI Text Extractor",
+  "version": "1.0.0",
+  "description": "一键复制网页所有元素或选中区域的纯文本，专为AI内容喂养优化。支持智能文本提取、格式清理，完全本地处理保护隐私。",
   "author": "zibo",
   "scripts": {
     "dev": "plasmo dev",
@@ -25,7 +25,40 @@
   },
   "manifest": {
     "host_permissions": [
-      "https://*/*"
-    ]
+      "https://*/*",
+      "http://*/*"
+    ],
+    "permissions": [
+      "activeTab",
+      "clipboardWrite",
+      "storage",
+      "contextMenus"
+    ],
+    "background": {
+      "service_worker": "background.js"
+    },
+    "commands": {
+      "copy-all": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+C",
+          "mac": "Command+Shift+C"
+        },
+        "description": "复制全页面文本"
+      },
+      "copy-selection": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+S",
+          "mac": "Command+Shift+S"
+        },
+        "description": "复制选中文本"
+      },
+      "copy-main": {
+        "suggested_key": {
+          "default": "Ctrl+Shift+M",
+          "mac": "Command+Shift+M"
+        },
+        "description": "智能提取主要内容"
+      }
+    }
   }
 }
