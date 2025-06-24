@@ -73,6 +73,28 @@ function IndexPopup() {
     }
   };
 
+  const toggleEditMode = async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab.id) {
+        await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            if (document.body.contentEditable === "true") {
+              document.body.contentEditable = 'false';
+            } else {
+              document.body.contentEditable = "true";
+            }
+          }
+        });
+        // 关闭popup窗口
+        window.close();
+      }
+    } catch (error) {
+      console.error('切换编辑模式失败:', error);
+    }
+  };
+
   return (
     <div style={{
       width: 320,
@@ -136,6 +158,7 @@ function IndexPopup() {
             复制全页
           </button>
           <button
+            onClick={toggleEditMode}
             style={{
               flex: 1,
               padding: '8px 12px',
@@ -148,7 +171,7 @@ function IndexPopup() {
               fontWeight: 500
             }}
           >
-            使用说明
+            编辑模式
           </button>
         </div>
       </div>
@@ -257,6 +280,7 @@ function IndexPopup() {
         <ul style={{ margin: 0, paddingLeft: 16, fontSize: 11, color: '#1E40AF', lineHeight: 1.4 }}>
           <li>点击页面右上角的悬浮按钮开始使用</li>
           <li>支持快捷键 Ctrl+Shift+C 快速复制全页</li>
+          <li>点击"编辑模式"可切换页面可编辑状态</li>
           <li>智能过滤广告、导航等无关内容</li>
           <li>所有处理完全在本地进行，保护隐私</li>
         </ul>

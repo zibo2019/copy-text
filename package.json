@@ -32,7 +32,8 @@
       "activeTab",
       "clipboardWrite",
       "storage",
-      "contextMenus"
+      "contextMenus",
+      "scripting"
     ],
     "background": {
       "service_worker": "background.js"
