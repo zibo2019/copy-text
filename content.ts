@@ -5,18 +5,22 @@ interface TextExtractionOptions {
   includeLinks?: boolean;
   cleanFormatting?: boolean;
   preserveStructure?: boolean;
+  autoHideButton?: boolean;
 }
 
 class SmartTextExtractor {
   private floatingButton: HTMLElement | null = null;
-  private isButtonVisible = false;
+  private isButtonVisible = true;
   private isInspectMode = false;
   private inspectOverlay: HTMLElement | null = null;
   private highlightedElement: HTMLElement | null = null;
+  private autoHideTimer: number | null = null;
+  private isMouseOverButton = false;
   private settings: TextExtractionOptions = {
     cleanFormatting: true,
     includeLinks: false,
-    preserveStructure: false
+    preserveStructure: false,
+    autoHideButton: false
   };
 
   constructor() {
@@ -43,6 +47,10 @@ class SmartTextExtractor {
       const response = await chrome.runtime.sendMessage({ action: 'get-settings' });
       if (response?.settings) {
         this.settings = { ...this.settings, ...response.settings };
+        // 如果按钮已经创建，重新应用自动隐藏设置
+        if (this.floatingButton) {
+          this.applyAutoHideSettings();
+        }
       }
     } catch (error) {
       console.error('加载设置失败:', error);
@@ -68,6 +76,7 @@ class SmartTextExtractor {
   private setupExtractor() {
     this.createFloatingButton();
     this.setupEventListeners();
+    this.applyAutoHideSettings();
 
     // 插件加载完成提示
     console.log('🚀 Smart Text Extractor 已加载完成 - 智能文本提取工具');
@@ -102,6 +111,7 @@ class SmartTextExtractor {
         right: 20px;
         z-index: 10000;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        transition: opacity 0.3s ease, transform 0.3s ease;
       }
       
       .ate-main-button {
@@ -181,7 +191,6 @@ class SmartTextExtractor {
     if (!this.floatingButton) return;
 
     const mainButton = this.floatingButton.querySelector('.ate-main-button');
-    const menu = this.floatingButton.querySelector('.ate-menu') as HTMLElement;
 
     // 主按钮点击事件
     mainButton?.addEventListener('click', (e) => {
@@ -193,12 +202,24 @@ class SmartTextExtractor {
     this.floatingButton.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       const menuItem = target.closest('.ate-menu-item') as HTMLElement;
-      
+
       if (menuItem) {
         const action = menuItem.dataset.action;
         this.handleAction(action);
         this.hideMenu();
       }
+    });
+
+    // 鼠标悬停事件（用于自动隐藏功能）
+    this.floatingButton.addEventListener('mouseenter', () => {
+      this.isMouseOverButton = true;
+      this.showButton();
+      this.clearAutoHideTimer();
+    });
+
+    this.floatingButton.addEventListener('mouseleave', () => {
+      this.isMouseOverButton = false;
+      this.startAutoHideTimer();
     });
 
     // 点击其他地方隐藏菜单
@@ -220,7 +241,6 @@ class SmartTextExtractor {
     if (menu) {
       const isVisible = menu.style.display !== 'none';
       menu.style.display = isVisible ? 'none' : 'block';
-      this.isButtonVisible = !isVisible;
     }
   }
 
@@ -228,7 +248,6 @@ class SmartTextExtractor {
     const menu = this.floatingButton?.querySelector('.ate-menu') as HTMLElement;
     if (menu) {
       menu.style.display = 'none';
-      this.isButtonVisible = false;
     }
   }
 
@@ -254,6 +273,9 @@ class SmartTextExtractor {
       if (text) {
         await this.copyToClipboard(text);
         this.showNotification(successMessage);
+
+        // 重新启动自动隐藏计时器
+        this.startAutoHideTimer();
 
         // 向后台脚本报告复制成功
         try {
@@ -640,6 +662,9 @@ class SmartTextExtractor {
       const elementInfo = this.getElementInfo(element);
       this.showNotification(`已复制 ${elementInfo} 的文本内容 (${text.length}字符)`);
 
+      // 重新启动自动隐藏计时器
+      this.startAutoHideTimer();
+
       // 向后台脚本报告复制成功
       try {
         await chrome.runtime.sendMessage({
@@ -705,6 +730,51 @@ class SmartTextExtractor {
     }
 
     return tagName;
+  }
+
+  // 应用自动隐藏设置
+  private applyAutoHideSettings() {
+    if (this.settings.autoHideButton) {
+      this.startAutoHideTimer();
+    } else {
+      this.showButton();
+    }
+  }
+
+  // 显示按钮
+  private showButton() {
+    if (this.floatingButton) {
+      this.floatingButton.style.opacity = '1';
+      this.floatingButton.style.transform = 'translateX(0)';
+      this.isButtonVisible = true;
+    }
+  }
+
+  // 隐藏按钮
+  private hideButton() {
+    if (this.floatingButton && this.settings.autoHideButton && !this.isMouseOverButton) {
+      this.floatingButton.style.opacity = '0.3';
+      this.floatingButton.style.transform = 'translateX(20px)';
+      this.isButtonVisible = false;
+    }
+  }
+
+  // 开始自动隐藏计时器
+  private startAutoHideTimer() {
+    if (!this.settings.autoHideButton) return;
+
+    this.clearAutoHideTimer();
+    this.autoHideTimer = window.setTimeout(() => {
+      this.hideButton();
+    }, 3000); // 3秒后自动隐藏
+  }
+
+  // 清除自动隐藏计时器
+  private clearAutoHideTimer() {
+    if (this.autoHideTimer) {
+      clearTimeout(this.autoHideTimer);
+      this.autoHideTimer = null;
+    }
   }
 }
 
