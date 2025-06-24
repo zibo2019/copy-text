@@ -60,7 +60,7 @@ class SmartTextExtractor {
   }
 
   private setupMessageListener() {
-    chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
       switch (message.action) {
         case 'copy-all':
           this.handleAction('copy-all');
@@ -216,7 +216,9 @@ class SmartTextExtractor {
     this.floatingButton.addEventListener('mouseenter', () => {
       if (this.settings.completelyHideButton) return;
       this.isMouseOverButton = true;
-      this.showButton();
+      if (!this.isButtonVisible) {
+        this.showButton();
+      }
       this.clearAutoHideTimer();
     });
 
@@ -759,7 +761,7 @@ class SmartTextExtractor {
 
   // 隐藏按钮
   private hideButton() {
-    if (this.floatingButton && this.settings.autoHideButton && !this.isMouseOverButton) {
+    if (this.floatingButton && this.settings.autoHideButton && !this.isMouseOverButton && this.isButtonVisible) {
       this.floatingButton.style.opacity = '0.3';
       this.floatingButton.style.transform = 'translateX(20px)';
       this.isButtonVisible = false;
@@ -777,7 +779,7 @@ class SmartTextExtractor {
 
   // 开始自动隐藏计时器
   private startAutoHideTimer() {
-    if (!this.settings.autoHideButton || this.settings.completelyHideButton) return;
+    if (!this.settings.autoHideButton || this.settings.completelyHideButton || !this.isButtonVisible) return;
 
     this.clearAutoHideTimer();
     this.autoHideTimer = window.setTimeout(() => {
