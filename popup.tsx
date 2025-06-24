@@ -4,13 +4,15 @@ interface Settings {
   cleanFormatting: boolean;
   showNotifications: boolean;
   autoHideButton: boolean;
+  completelyHideButton: boolean;
 }
 
 function IndexPopup() {
   const [settings, setSettings] = useState<Settings>({
     cleanFormatting: true,
     showNotifications: true,
-    autoHideButton: false
+    autoHideButton: false,
+    completelyHideButton: false
   });
 
   const [stats, setStats] = useState({
@@ -56,7 +58,17 @@ function IndexPopup() {
   };
 
   const handleSettingChange = (key: keyof Settings, value: any) => {
-    const newSettings = { ...settings, [key]: value };
+    let newSettings = { ...settings, [key]: value };
+
+    // 处理两个隐藏选项的互斥关系
+    if (key === 'completelyHideButton' && value === true) {
+      // 选择彻底隐藏时，取消自动隐藏
+      newSettings.autoHideButton = false;
+    } else if (key === 'autoHideButton' && value === true) {
+      // 选择自动隐藏时，取消彻底隐藏
+      newSettings.completelyHideButton = false;
+    }
+
     saveSettings(newSettings);
   };
 
@@ -248,7 +260,7 @@ function IndexPopup() {
           </label>
         </div>
 
-        <div>
+        <div style={{ marginBottom: 12 }}>
           <label style={{
             display: 'flex',
             alignItems: 'center',
@@ -263,6 +275,24 @@ function IndexPopup() {
               style={{ marginRight: 8 }}
             />
             自动隐藏悬浮按钮
+          </label>
+        </div>
+
+        <div>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer',
+            fontSize: 12,
+            color: '#374151'
+          }}>
+            <input
+              type="checkbox"
+              checked={settings.completelyHideButton}
+              onChange={(e) => handleSettingChange('completelyHideButton', e.target.checked)}
+              style={{ marginRight: 8 }}
+            />
+            彻底隐藏悬浮按钮
           </label>
         </div>
       </div>
@@ -281,6 +311,7 @@ function IndexPopup() {
           <li>点击页面右上角的悬浮按钮开始使用</li>
           <li>支持快捷键 Ctrl+Shift+C 快速复制全页</li>
           <li>点击"编辑模式"可切换页面可编辑状态</li>
+          <li>彻底隐藏按钮后可通过快捷键或右键菜单使用</li>
           <li>智能过滤广告、导航等无关内容</li>
           <li>所有处理完全在本地进行，保护隐私</li>
         </ul>

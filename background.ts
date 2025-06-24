@@ -111,7 +111,8 @@ class BackgroundService {
       return result.smartTextExtractorSettings || {
         cleanFormatting: true,
         showNotifications: true,
-        autoHideButton: false
+        autoHideButton: false,
+        completelyHideButton: false
       };
     } catch (error) {
       console.error('获取设置失败:', error);

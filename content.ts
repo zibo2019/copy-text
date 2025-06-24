@@ -6,6 +6,7 @@ interface TextExtractionOptions {
   cleanFormatting?: boolean;
   preserveStructure?: boolean;
   autoHideButton?: boolean;
+  completelyHideButton?: boolean;
 }
 
 class SmartTextExtractor {
@@ -20,7 +21,8 @@ class SmartTextExtractor {
     cleanFormatting: true,
     includeLinks: false,
     preserveStructure: false,
-    autoHideButton: false
+    autoHideButton: false,
+    completelyHideButton: false
   };
 
   constructor() {
@@ -212,12 +214,14 @@ class SmartTextExtractor {
 
     // 鼠标悬停事件（用于自动隐藏功能）
     this.floatingButton.addEventListener('mouseenter', () => {
+      if (this.settings.completelyHideButton) return;
       this.isMouseOverButton = true;
       this.showButton();
       this.clearAutoHideTimer();
     });
 
     this.floatingButton.addEventListener('mouseleave', () => {
+      if (this.settings.completelyHideButton) return;
       this.isMouseOverButton = false;
       this.startAutoHideTimer();
     });
@@ -734,7 +738,9 @@ class SmartTextExtractor {
 
   // 应用自动隐藏设置
   private applyAutoHideSettings() {
-    if (this.settings.autoHideButton) {
+    if (this.settings.completelyHideButton) {
+      this.completelyHideButton();
+    } else if (this.settings.autoHideButton) {
       this.startAutoHideTimer();
     } else {
       this.showButton();
@@ -744,6 +750,7 @@ class SmartTextExtractor {
   // 显示按钮
   private showButton() {
     if (this.floatingButton) {
+      this.floatingButton.style.display = 'block';
       this.floatingButton.style.opacity = '1';
       this.floatingButton.style.transform = 'translateX(0)';
       this.isButtonVisible = true;
@@ -759,9 +766,18 @@ class SmartTextExtractor {
     }
   }
 
+  // 彻底隐藏按钮
+  private completelyHideButton() {
+    if (this.floatingButton) {
+      this.floatingButton.style.display = 'none';
+      this.isButtonVisible = false;
+      this.clearAutoHideTimer();
+    }
+  }
+
   // 开始自动隐藏计时器
   private startAutoHideTimer() {
-    if (!this.settings.autoHideButton) return;
+    if (!this.settings.autoHideButton || this.settings.completelyHideButton) return;
 
     this.clearAutoHideTimer();
     this.autoHideTimer = window.setTimeout(() => {
