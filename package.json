@@ -1,8 +1,8 @@
 {
-  "name": "ai-text-extractor",
-  "displayName": "AI Text Extractor",
+  "name": "smart-text-extractor",
+  "displayName": "Smart Text Extractor",
   "version": "1.0.0",
-  "description": "一键复制网页所有元素或选中区域的纯文本，专为AI内容喂养优化。支持智能文本提取、格式清理，完全本地处理保护隐私。",
+  "description": "一键复制网页所有元素或选中区域的纯文本。支持智能文本提取、格式清理，完全本地处理保护隐私。",
   "author": "zibo",
   "scripts": {
     "dev": "plasmo dev",

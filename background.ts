@@ -32,14 +32,14 @@ class BackgroundService {
     this.setupCommands();
 
     // 后台服务加载完成提示
-    console.log('🚀 AI Text Extractor 后台服务已启动');
+    console.log('🚀 Smart Text Extractor 后台服务已启动');
   }
 
   private async loadStats() {
     try {
-      const result = await chrome.storage.local.get(['aiTextExtractorStats']);
-      if (result.aiTextExtractorStats) {
-        this.stats = result.aiTextExtractorStats;
+      const result = await chrome.storage.local.get(['smartTextExtractorStats']);
+      if (result.smartTextExtractorStats) {
+        this.stats = result.smartTextExtractorStats;
       }
     } catch (error) {
       console.error('加载统计数据失败:', error);
@@ -48,7 +48,7 @@ class BackgroundService {
 
   private async saveStats() {
     try {
-      await chrome.storage.local.set({ aiTextExtractorStats: this.stats });
+      await chrome.storage.local.set({ smartTextExtractorStats: this.stats });
     } catch (error) {
       console.error('保存统计数据失败:', error);
     }
@@ -107,8 +107,8 @@ class BackgroundService {
 
   private async getSettings() {
     try {
-      const result = await chrome.storage.sync.get(['aiTextExtractorSettings']);
-      return result.aiTextExtractorSettings || {
+      const result = await chrome.storage.sync.get(['smartTextExtractorSettings']);
+      return result.smartTextExtractorSettings || {
         maxLength: 50000,
         cleanFormatting: true,
         showNotifications: true,
@@ -125,14 +125,14 @@ class BackgroundService {
   private setupContextMenus() {
     // 创建右键菜单
     chrome.contextMenus.create({
-      id: 'ai-text-extractor-copy-all',
-      title: '复制全页面文本 (AI优化)',
+      id: 'smart-text-extractor-copy-all',
+      title: '复制全页面文本',
       contexts: ['page']
     });
 
     chrome.contextMenus.create({
-      id: 'ai-text-extractor-copy-selection',
-      title: '选择元素提取文本 (AI优化)',
+      id: 'smart-text-extractor-copy-selection',
+      title: '选择元素提取文本',
       contexts: ['page']
     });
 
@@ -145,10 +145,10 @@ class BackgroundService {
       try {
         let action = '';
         switch (info.menuItemId) {
-          case 'ai-text-extractor-copy-all':
+          case 'smart-text-extractor-copy-all':
             action = 'copy-all';
             break;
-          case 'ai-text-extractor-copy-selection':
+          case 'smart-text-extractor-copy-selection':
             action = 'copy-selection';
             break;
         }
@@ -203,5 +203,5 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // 扩展启动时的处理
 chrome.runtime.onStartup.addListener(() => {
-  console.log('AI Text Extractor 已启动');
+  console.log('Smart Text Extractor 已启动');
 });

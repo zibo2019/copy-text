@@ -1,5 +1,5 @@
-// AI Text Extractor - Content Script
-// 专为AI内容喂养优化的智能文本提取器
+// Smart Text Extractor - Content Script
+// 智能文本提取器
 
 interface TextExtractionOptions {
   includeLinks?: boolean;
@@ -8,7 +8,7 @@ interface TextExtractionOptions {
   preserveStructure?: boolean;
 }
 
-class AITextExtractor {
+class SmartTextExtractor {
   private floatingButton: HTMLElement | null = null;
   private isButtonVisible = false;
   private isInspectMode = false;
@@ -72,13 +72,13 @@ class AITextExtractor {
     this.setupEventListeners();
 
     // 插件加载完成提示
-    console.log('🚀 AI Text Extractor 已加载完成 - 专为AI内容喂养优化的智能文本提取工具');
+    console.log('🚀 Smart Text Extractor 已加载完成 - 智能文本提取工具');
   }
 
   // 创建悬浮按钮
   private createFloatingButton() {
     const button = document.createElement('div');
-    button.id = 'ai-text-extractor-button';
+    button.id = 'smart-text-extractor-button';
     button.innerHTML = `
       <div class="ate-main-button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -98,7 +98,7 @@ class AITextExtractor {
     // 添加样式
     const style = document.createElement('style');
     style.textContent = `
-      #ai-text-extractor-button {
+      #smart-text-extractor-button {
         position: fixed;
         top: 20px;
         right: 20px;
@@ -242,8 +242,8 @@ class AITextExtractor {
     try {
       switch (action) {
         case 'copy-all':
-          text = this.processTextForAI(this.extractFullPageText());
-          successMessage = '已复制全页面文本 (AI优化)';
+          text = this.processText(this.extractFullPageText());
+          successMessage = '已复制全页面文本';
           break;
         case 'copy-selection':
           // 进入元素选择模式
@@ -327,40 +327,24 @@ class AITextExtractor {
       .trim();
   }
 
-  // AI友好的文本处理
-  private processTextForAI(text: string): string {
-    console.log('🔍 [调试] processTextForAI 开始');
-    console.log('🔍 [调试] 输入文本长度:', text.length);
-    console.log('🔍 [调试] 最大长度设置:', this.settings.maxLength);
-
+  // 文本处理和优化
+  private processText(text: string): string {
     // 基础清理
-    const beforeClean = text;
     text = this.cleanText(text);
-    console.log('🔍 [调试] cleanText前长度:', beforeClean.length);
-    console.log('🔍 [调试] cleanText后长度:', text.length);
 
     // 添加文本统计信息
     const stats = this.getTextStats(text);
-    console.log('🔍 [调试] 文本统计:', stats);
     let processedText = text;
 
     // 如果文本过长，进行智能截断
     if (text.length > this.settings.maxLength!) {
-      console.log('🔍 [调试] 文本过长，需要截断');
       processedText = this.intelligentTruncate(text, this.settings.maxLength!);
-      console.log('🔍 [调试] 截断后长度:', processedText.length);
-    } else {
-      console.log('🔍 [调试] 文本长度在限制内，无需截断');
     }
 
     // 添加元信息头部
     const metadata = this.generateMetadata(stats, processedText.length !== text.length);
-    console.log('🔍 [调试] 元信息长度:', metadata.length);
 
-    const finalText = metadata + '\n\n' + processedText;
-    console.log('🔍 [调试] 最终文本长度:', finalText.length);
-
-    return finalText;
+    return metadata + '\n\n' + processedText;
   }
 
   // 获取文本统计信息
@@ -373,8 +357,7 @@ class AITextExtractor {
       characters: text.length,
       words: words.length,
       sentences: sentences.length,
-      paragraphs: paragraphs.length,
-      estimatedTokens: Math.ceil(words.length * 1.3) // 粗略估算token数
+      paragraphs: paragraphs.length
     };
   }
 
@@ -388,10 +371,9 @@ class AITextExtractor {
     metadata += `\n来源: ${url}`;
     metadata += `\n提取时间: ${timestamp}`;
     metadata += `\n统计: ${stats.characters}字符, ${stats.words}词, ${stats.sentences}句, ${stats.paragraphs}段`;
-    metadata += `\n预估Token: ~${stats.estimatedTokens}`;
 
     if (wasTruncated) {
-      metadata += `\n⚠️ 文本已截断至${this.settings.maxLength}字符以适应AI输入限制`;
+      metadata += `\n⚠️ 文本已截断至${this.settings.maxLength}字符以适应长度限制`;
     }
 
     metadata += '\n' + '='.repeat(50);
@@ -532,7 +514,7 @@ class AITextExtractor {
   // 创建检查模式覆盖层
   private createInspectOverlay() {
     const overlay = document.createElement('div');
-    overlay.id = 'ai-text-extractor-inspect-overlay';
+    overlay.id = 'smart-text-extractor-inspect-overlay';
     overlay.style.cssText = `
       position: fixed;
       top: 0;
@@ -584,7 +566,7 @@ class AITextExtractor {
     }
 
     // 移除所有提示元素
-    document.querySelectorAll('#ai-text-extractor-inspect-overlay, [id*="ai-text-extractor-hint"]').forEach(el => {
+    document.querySelectorAll('#smart-text-extractor-inspect-overlay, [id*="smart-text-extractor-hint"]').forEach(el => {
       el.remove();
     });
   }
@@ -652,7 +634,7 @@ class AITextExtractor {
 
     const rect = element.getBoundingClientRect();
     const highlight = document.createElement('div');
-    highlight.id = 'ai-text-extractor-highlight';
+    highlight.id = 'smart-text-extractor-highlight';
     highlight.style.cssText = `
       position: fixed;
       top: ${rect.top}px;
@@ -732,8 +714,8 @@ class AITextExtractor {
         return;
       }
 
-      // 应用AI优化处理
-      text = this.processTextForAI(text);
+      // 应用文本处理
+      text = this.processText(text);
 
       // 复制到剪贴板
       await this.copyToClipboard(text);
@@ -811,4 +793,4 @@ class AITextExtractor {
 }
 
 // 初始化扩展
-new AITextExtractor();
+new SmartTextExtractor();

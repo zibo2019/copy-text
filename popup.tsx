@@ -28,9 +28,9 @@ function IndexPopup() {
 
   const loadSettings = async () => {
     try {
-      const result = await chrome.storage.sync.get(['aiTextExtractorSettings']);
-      if (result.aiTextExtractorSettings) {
-        setSettings(result.aiTextExtractorSettings);
+      const result = await chrome.storage.sync.get(['smartTextExtractorSettings']);
+      if (result.smartTextExtractorSettings) {
+        setSettings(result.smartTextExtractorSettings);
       }
     } catch (error) {
       console.error('加载设置失败:', error);
@@ -39,9 +39,9 @@ function IndexPopup() {
 
   const loadStats = async () => {
     try {
-      const result = await chrome.storage.local.get(['aiTextExtractorStats']);
-      if (result.aiTextExtractorStats) {
-        setStats(result.aiTextExtractorStats);
+      const result = await chrome.storage.local.get(['smartTextExtractorStats']);
+      if (result.smartTextExtractorStats) {
+        setStats(result.smartTextExtractorStats);
       }
     } catch (error) {
       console.error('加载统计失败:', error);
@@ -50,7 +50,7 @@ function IndexPopup() {
 
   const saveSettings = async (newSettings: Settings) => {
     try {
-      await chrome.storage.sync.set({ aiTextExtractorSettings: newSettings });
+      await chrome.storage.sync.set({ smartTextExtractorSettings: newSettings });
       setSettings(newSettings);
     } catch (error) {
       console.error('保存设置失败:', error);
@@ -106,10 +106,10 @@ function IndexPopup() {
           </div>
           <div>
             <h1 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#111827' }}>
-              AI Text Extractor
+              Smart Text Extractor
             </h1>
             <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>
-              专为AI优化的文本提取工具
+              智能文本提取工具
             </p>
           </div>
         </div>
