@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 
 interface Settings {
-  maxLength: number;
   cleanFormatting: boolean;
   showNotifications: boolean;
   autoHideButton: boolean;
@@ -9,7 +8,6 @@ interface Settings {
 
 function IndexPopup() {
   const [settings, setSettings] = useState<Settings>({
-    maxLength: 50000,
     cleanFormatting: true,
     showNotifications: true,
     autoHideButton: false
@@ -189,28 +187,7 @@ function IndexPopup() {
           设置选项
         </h3>
 
-        <div style={{ marginBottom: 16 }}>
-          <label style={{ display: 'block', marginBottom: 6, fontSize: 12, color: '#374151' }}>
-            最大文本长度
-          </label>
-          <select
-            value={settings.maxLength}
-            onChange={(e) => handleSettingChange('maxLength', parseInt(e.target.value))}
-            style={{
-              width: '100%',
-              padding: '6px 8px',
-              border: '1px solid #D1D5DB',
-              borderRadius: 4,
-              fontSize: 12,
-              background: 'white'
-            }}
-          >
-            <option value={10000}>10,000 字符 (适合短文本)</option>
-            <option value={30000}>30,000 字符 (适合中等文本)</option>
-            <option value={50000}>50,000 字符 (适合长文本)</option>
-            <option value={100000}>100,000 字符 (适合超长文本)</option>
-          </select>
-        </div>
+
 
         <div style={{ marginBottom: 12 }}>
           <label style={{

@@ -109,7 +109,6 @@ class BackgroundService {
     try {
       const result = await chrome.storage.sync.get(['smartTextExtractorSettings']);
       return result.smartTextExtractorSettings || {
-        maxLength: 50000,
         cleanFormatting: true,
         showNotifications: true,
         autoHideButton: false

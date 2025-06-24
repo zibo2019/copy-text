@@ -3,7 +3,6 @@
 
 interface TextExtractionOptions {
   includeLinks?: boolean;
-  maxLength?: number;
   cleanFormatting?: boolean;
   preserveStructure?: boolean;
 }
@@ -15,7 +14,6 @@ class SmartTextExtractor {
   private inspectOverlay: HTMLElement | null = null;
   private highlightedElement: HTMLElement | null = null;
   private settings: TextExtractionOptions = {
-    maxLength: 50000,
     cleanFormatting: true,
     includeLinks: false,
     preserveStructure: false
@@ -276,7 +274,6 @@ class SmartTextExtractor {
   // 提取全页面文本
   private extractFullPageText(options: TextExtractionOptions = {}): string {
     const {
-      maxLength = 50000,
       cleanFormatting = true
     } = options;
 
@@ -298,7 +295,7 @@ class SmartTextExtractor {
       text = this.cleanText(text);
     }
 
-    return this.truncateText(text, maxLength);
+    return text;
   }
 
 
@@ -334,17 +331,11 @@ class SmartTextExtractor {
 
     // 添加文本统计信息
     const stats = this.getTextStats(text);
-    let processedText = text;
-
-    // 如果文本过长，进行智能截断
-    if (text.length > this.settings.maxLength!) {
-      processedText = this.intelligentTruncate(text, this.settings.maxLength!);
-    }
 
     // 添加元信息头部
-    const metadata = this.generateMetadata(stats, processedText.length !== text.length);
+    const metadata = this.generateMetadata(stats);
 
-    return metadata + '\n\n' + processedText;
+    return metadata + '\n\n' + text;
   }
 
   // 获取文本统计信息
@@ -362,7 +353,7 @@ class SmartTextExtractor {
   }
 
   // 生成元信息
-  private generateMetadata(stats: any, wasTruncated: boolean): string {
+  private generateMetadata(stats: any): string {
     const url = window.location.href;
     const title = document.title;
     const timestamp = new Date().toISOString();
@@ -372,87 +363,12 @@ class SmartTextExtractor {
     metadata += `\n提取时间: ${timestamp}`;
     metadata += `\n统计: ${stats.characters}字符, ${stats.words}词, ${stats.sentences}句, ${stats.paragraphs}段`;
 
-    if (wasTruncated) {
-      metadata += `\n⚠️ 文本已截断至${this.settings.maxLength}字符以适应长度限制`;
-    }
-
     metadata += '\n' + '='.repeat(50);
 
     return metadata;
   }
 
-  // 智能截断文本
-  private intelligentTruncate(text: string, maxLength: number): string {
-    if (text.length <= maxLength) {
-      return text;
-    }
 
-    // 预留空间给截断提示
-    const reserveSpace = 200;
-    const targetLength = maxLength - reserveSpace;
-
-    // 尝试在句子边界截断
-    const sentences = text.split(/([.!?]+\s*)/);
-    let result = '';
-
-    for (let i = 0; i < sentences.length; i += 2) {
-      const sentence = sentences[i] + (sentences[i + 1] || '');
-      if ((result + sentence).length > targetLength) {
-        break;
-      }
-      result += sentence;
-    }
-
-    // 如果句子截断后太短，尝试段落截断
-    if (result.length < targetLength * 0.7) {
-      const paragraphs = text.split(/\n\s*\n/);
-      result = '';
-
-      for (const paragraph of paragraphs) {
-        if ((result + paragraph + '\n\n').length > targetLength) {
-          break;
-        }
-        result += paragraph + '\n\n';
-      }
-    }
-
-    // 如果还是太短，直接字符截断
-    if (result.length < targetLength * 0.5) {
-      result = text.substring(0, targetLength);
-      // 尝试在单词边界截断
-      const lastSpace = result.lastIndexOf(' ');
-      if (lastSpace > targetLength * 0.8) {
-        result = result.substring(0, lastSpace);
-      }
-    }
-
-    // 添加截断提示
-    const truncatedLength = text.length - result.length;
-    result += `\n\n[已截断 ${truncatedLength} 字符]`;
-    result += `\n[原文总长度: ${text.length} 字符]`;
-    result += `\n[建议: 如需完整内容，请分段提取或调整最大长度设置]`;
-
-    return result.trim();
-  }
-
-  // 截断文本
-  private truncateText(text: string, maxLength: number): string {
-    if (text.length <= maxLength) {
-      return text;
-    }
-
-    // 在句号或段落处截断
-    const truncated = text.substring(0, maxLength);
-    const lastSentence = truncated.lastIndexOf('。');
-    const lastParagraph = truncated.lastIndexOf('\n\n');
-    
-    const cutPoint = Math.max(lastSentence, lastParagraph);
-    if (cutPoint > maxLength * 0.8) {
-      return truncated.substring(0, cutPoint + 1) + '\n\n[文本已截断，总长度超出限制]';
-    }
-
-    return truncated + '...\n\n[文本已截断，总长度超出限制]';
-  }
 
   // 复制到剪贴板
   private async copyToClipboard(text: string): Promise<void> {
