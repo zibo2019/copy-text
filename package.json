@@ -51,13 +51,6 @@
           "mac": "Command+Shift+S"
         },
         "description": "选择元素提取文本"
-      },
-      "copy-main": {
-        "suggested_key": {
-          "default": "Ctrl+Shift+M",
-          "mac": "Command+Shift+M"
-        },
-        "description": "智能提取主要内容"
       }
     }
   }

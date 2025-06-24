@@ -60,9 +60,6 @@ class AITextExtractor {
         case 'copy-selection':
           this.handleAction('copy-selection');
           break;
-        case 'copy-main':
-          this.handleAction('copy-main');
-          break;
       }
       sendResponse({ success: true });
     });
@@ -73,6 +70,9 @@ class AITextExtractor {
   private setupExtractor() {
     this.createFloatingButton();
     this.setupEventListeners();
+
+    // 插件加载完成提示
+    console.log('🚀 AI Text Extractor 已加载完成 - 专为AI内容喂养优化的智能文本提取工具');
   }
 
   // 创建悬浮按钮
@@ -80,7 +80,7 @@ class AITextExtractor {
     const button = document.createElement('div');
     button.id = 'ai-text-extractor-button';
     button.innerHTML = `
-      <div class="ate-main-button" title="AI文本提取器">
+      <div class="ate-main-button">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
           <path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-1 16H9V7h9v14z"/>
         </svg>
@@ -91,9 +91,6 @@ class AITextExtractor {
         </button>
         <button class="ate-menu-item" data-action="copy-selection">
           <span>选择元素</span>
-        </button>
-        <button class="ate-menu-item" data-action="copy-main">
-          <span>智能提取</span>
         </button>
       </div>
     `;
@@ -252,10 +249,6 @@ class AITextExtractor {
           // 进入元素选择模式
           this.enterInspectMode();
           return; // 不执行复制，等待用户选择元素
-        case 'copy-main':
-          text = this.processTextForAI(this.extractMainContent());
-          successMessage = '已复制主要内容 (AI优化)';
-          break;
         default:
           return;
       }
@@ -273,8 +266,6 @@ class AITextExtractor {
         } catch (error) {
           console.error('报告复制状态失败:', error);
         }
-      } else if (action === 'copy-selection') {
-        this.showNotification('请先选中要复制的文本', 'warning');
       }
     } catch (error) {
       console.error('复制失败:', error);
@@ -286,8 +277,7 @@ class AITextExtractor {
   private extractFullPageText(options: TextExtractionOptions = {}): string {
     const {
       maxLength = 50000,
-      cleanFormatting = true,
-      preserveStructure = false
+      cleanFormatting = true
     } = options;
 
     // 移除不需要的元素
@@ -311,36 +301,7 @@ class AITextExtractor {
     return this.truncateText(text, maxLength);
   }
 
-  // 提取选中文本
-  private extractSelectedText(): string {
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) {
-      return '';
-    }
 
-    let text = selection.toString();
-    return this.cleanText(text);
-  }
-
-  // 智能提取主要内容
-  private extractMainContent(): string {
-    // 尝试找到主要内容区域
-    const mainSelectors = [
-      'main', 'article', '.content', '.post', '.entry',
-      '[role="main"]', '.main-content', '#content'
-    ];
-
-    for (const selector of mainSelectors) {
-      const element = document.querySelector(selector);
-      if (element) {
-        let text = element.textContent || '';
-        return this.cleanText(text);
-      }
-    }
-
-    // 如果没找到主要内容区域，使用全页面提取
-    return this.extractFullPageText({ maxLength: 30000 });
-  }
 
   // 清理文本格式 - AI优化版本
   private cleanText(text: string): string {
@@ -368,22 +329,38 @@ class AITextExtractor {
 
   // AI友好的文本处理
   private processTextForAI(text: string): string {
+    console.log('🔍 [调试] processTextForAI 开始');
+    console.log('🔍 [调试] 输入文本长度:', text.length);
+    console.log('🔍 [调试] 最大长度设置:', this.settings.maxLength);
+
     // 基础清理
+    const beforeClean = text;
     text = this.cleanText(text);
+    console.log('🔍 [调试] cleanText前长度:', beforeClean.length);
+    console.log('🔍 [调试] cleanText后长度:', text.length);
 
     // 添加文本统计信息
     const stats = this.getTextStats(text);
+    console.log('🔍 [调试] 文本统计:', stats);
     let processedText = text;
 
     // 如果文本过长，进行智能截断
     if (text.length > this.settings.maxLength!) {
+      console.log('🔍 [调试] 文本过长，需要截断');
       processedText = this.intelligentTruncate(text, this.settings.maxLength!);
+      console.log('🔍 [调试] 截断后长度:', processedText.length);
+    } else {
+      console.log('🔍 [调试] 文本长度在限制内，无需截断');
     }
 
     // 添加元信息头部
     const metadata = this.generateMetadata(stats, processedText.length !== text.length);
+    console.log('🔍 [调试] 元信息长度:', metadata.length);
 
-    return metadata + '\n\n' + processedText;
+    const finalText = metadata + '\n\n' + processedText;
+    console.log('🔍 [调试] 最终文本长度:', finalText.length);
+
+    return finalText;
   }
 
   // 获取文本统计信息
@@ -407,7 +384,7 @@ class AITextExtractor {
     const title = document.title;
     const timestamp = new Date().toISOString();
 
-    let metadata = `[AI文本提取 - ${title}]`;
+    let metadata = `[网页文本提取 - ${title}]`;
     metadata += `\n来源: ${url}`;
     metadata += `\n提取时间: ${timestamp}`;
     metadata += `\n统计: ${stats.characters}字符, ${stats.words}词, ${stats.sentences}句, ${stats.paragraphs}段`;
@@ -639,7 +616,7 @@ class AITextExtractor {
   };
 
   // 处理鼠标离开
-  private handleInspectMouseOut = (e: MouseEvent) => {
+  private handleInspectMouseOut = (_e: MouseEvent) => {
     if (!this.isInspectMode) return;
     // 不立即移除高亮，等待新的元素高亮
   };
@@ -728,21 +705,27 @@ class AITextExtractor {
   // 提取元素文本
   private async extractElementText(element: HTMLElement) {
     try {
-      // 克隆元素以避免修改原始DOM
+      // 深度克隆元素以避免修改原始DOM
       const clone = element.cloneNode(true) as HTMLElement;
 
-      // 移除脚本、样式等不需要的元素
+      // 移除脚本、样式等不需要的元素，但保留所有文本内容
       const unwantedSelectors = [
-        'script', 'style', 'noscript', 'iframe', 'object', 'embed',
-        '.advertisement', '.ads', '[class*="ad-"]', '[id*="ad-"]'
+        'script', 'style', 'noscript', 'iframe', 'object', 'embed', 'svg',
+        '.advertisement', '.ads', '[class*="ad-"]', '[id*="ad-"]',
+        '[style*="display: none"]', '[style*="display:none"]',
+        '.hidden', '[hidden]'
       ];
 
       unwantedSelectors.forEach(selector => {
-        clone.querySelectorAll(selector).forEach(el => el.remove());
+        try {
+          clone.querySelectorAll(selector).forEach(el => el.remove());
+        } catch (e) {
+          // 忽略选择器错误
+        }
       });
 
-      // 提取纯文本
-      let text = clone.innerText || clone.textContent || '';
+      // 使用更全面的文本提取方法
+      let text = this.extractAllTextFromElement(clone);
 
       if (!text.trim()) {
         this.showNotification('该元素没有可提取的文本内容', 'warning');
@@ -757,7 +740,7 @@ class AITextExtractor {
 
       // 显示成功通知
       const elementInfo = this.getElementInfo(element);
-      this.showNotification(`已复制 ${elementInfo} 的文本内容 (AI优化)`);
+      this.showNotification(`已复制 ${elementInfo} 的文本内容 (${text.length}字符)`);
 
       // 向后台脚本报告复制成功
       try {
@@ -774,6 +757,24 @@ class AITextExtractor {
       this.showNotification('提取文本失败，请重试', 'error');
     }
   }
+
+  // 从元素中提取所有文本内容
+  private extractAllTextFromElement(element: HTMLElement): string {
+    // 直接使用 textContent 获取所有文本内容（包括隐藏元素）
+    let text = element.textContent || '';
+
+    // 温和的文本清理，保持原有结构
+    text = text
+      .replace(/[ \t]+/g, ' ')  // 只合并空格和制表符，保留换行
+      .replace(/\n[ \t]+/g, '\n')  // 移除换行后的空格和制表符
+      .replace(/[ \t]+\n/g, '\n')  // 移除换行前的空格和制表符
+      .replace(/\n{3,}/g, '\n\n')  // 最多保留两个连续换行
+      .trim();
+
+    return text;
+  }
+
+
 
   // 获取元素信息
   private getElementInfo(element: HTMLElement): string {

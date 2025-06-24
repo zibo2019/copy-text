@@ -21,15 +21,18 @@ class BackgroundService {
   private async init() {
     // 加载统计数据
     await this.loadStats();
-    
+
     // 设置消息监听器
     this.setupMessageListeners();
-    
+
     // 设置上下文菜单
     this.setupContextMenus();
-    
+
     // 设置快捷键
     this.setupCommands();
+
+    // 后台服务加载完成提示
+    console.log('🚀 AI Text Extractor 后台服务已启动');
   }
 
   private async loadStats() {
@@ -133,11 +136,7 @@ class BackgroundService {
       contexts: ['page']
     });
 
-    chrome.contextMenus.create({
-      id: 'ai-text-extractor-copy-main',
-      title: '智能提取主要内容',
-      contexts: ['page']
-    });
+
 
     // 监听右键菜单点击
     chrome.contextMenus.onClicked.addListener(async (info, tab) => {
@@ -151,9 +150,6 @@ class BackgroundService {
             break;
           case 'ai-text-extractor-copy-selection':
             action = 'copy-selection';
-            break;
-          case 'ai-text-extractor-copy-main':
-            action = 'copy-main';
             break;
         }
 
@@ -179,9 +175,6 @@ class BackgroundService {
             break;
           case 'copy-selection':
             action = 'copy-selection';
-            break;
-          case 'copy-main':
-            action = 'copy-main';
             break;
         }
 
